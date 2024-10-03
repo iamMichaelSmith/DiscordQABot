@@ -7,7 +7,7 @@ on:
 
 jobs:
   upload_deps:
-    if: github.repository != 'iamMichaelSmith/DiscordQABot'
+    if: github.repository == 'iamMichaelSmith/DiscordQABot'
     name: Upload Dependencies
     runs-on: ubuntu-latest
 
@@ -22,10 +22,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.12
 
       - name: Upload Dependencies
         env:
@@ -38,17 +38,17 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           set -e
-          mkdir -p python/lib/python3.11/site-packages
+          mkdir -p python/lib/python3.12/site-packages
 
-          docker run --rm -v "$PWD:/var/task" "public.ecr.aws/sam/build-python3.11" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.11/site-packages/; exit"
+          docker run --rm -v "$PWD:/var/task" "public.ecr.aws/sam/build-python3.12" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.12/site-packages/; exit"
 
-          PYTHONPATH=python/lib/python3.11/site-packages python -m discord_lambda.CommandRegistryPickler
+          PYTHONPATH=python/lib/python3.12/site-packages python -m discord_lambda.CommandRegistryPickler
 
           zip -q -r $release_id python CommandRegistry.pickle
 
           echo "Uploading $release_id to $release_bucket_uri"
           aws s3 cp $release_id $release_bucket_uri
-          aws lambda publish-layer-version --layer-name $release_layer --content S3Bucket=$release_bucket,S3Key=$release_id --compatible-runtimes python3.11
+          aws lambda publish-layer-version --layer-name $release_layer --content S3Bucket=$release_bucket,S3Key=$release_id --compatible-runtimes python3.12
 
           prev_layer_version=$(aws lambda list-layer-versions --layer-name $release_layer --query 'LayerVersions[1].Version' --output text)
 
@@ -61,7 +61,7 @@ jobs:
           aws lambda update-function-configuration --function-name $function_name --layers $layer_arn
   
   upload_source:
-    if: github.repository != 'jaARke/discord-lambda-py'
+    if: github.repository == 'iamMichaelSmith/DiscordQABot'
     name: Upload Source
     runs-on: ubuntu-latest
 
@@ -84,3 +84,12 @@ jobs:
             APP_ID=${{ secrets.APP_ID }}
             PUBLIC_KEY=${{ secrets.PUBLIC_KEY }}
             # Add your environment variables below in the same format as above
+
+      - name: Update Lambda Runtime
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - run: |
+          aws lambda update-function-configuration --function-name StudioDiscordBot --runtime python3.12
