@@ -2,6 +2,8 @@ import os
 from nacl.signing import VerifyKey
 from discord_lambda import Interaction, Embedding
 import pickle
+pip install --target ./package pynacl
+zip -r function.zip package lambda_function.py
 
 
 def verify_signature(event: dict) -> None:
